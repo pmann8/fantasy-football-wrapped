@@ -5,7 +5,9 @@ import { onMounted } from "vue";
 import { initFlowbite } from "flowbite";
 import { getData, inputLeague } from "../../api/api";
 import { LeagueInfoType } from "../../api/types";
+import { useRouter } from "vue-router";
 
+const router = useRouter();
 onMounted(() => {
   initFlowbite();
 });
@@ -65,6 +67,14 @@ const removeLeague = () => {
     if (store.currentLeagueId === "") {
       localStorage.removeItem("currentTab");
       store.currentTab = "standings";
+      // reset url if there are no leagues
+      router.replace({
+        path: "/",
+        query: {},
+      });
+      // sometimes the league id in the url persists
+      const baseUrl = window.location.origin + window.location.pathname;
+      window.history.pushState({}, "", baseUrl);
     }
     if (localStorage.originalData) {
       const currentData = JSON.parse(localStorage.originalData);
@@ -75,7 +85,6 @@ const removeLeague = () => {
         localStorage.originalData = JSON.stringify(currentData);
       }
     }
-    window.history.replaceState({}, document.title, window.location.pathname);
     setTimeout(() => {
       store.updateRemovedAlert(false);
     }, 3000);

@@ -10,12 +10,13 @@ import HeatMap from "./HeatMap.vue";
 const store = useStore();
 const loading = ref(false);
 const categories = computed(() => {
-  return formattedData.value.map((user) => user.name);
+  return formattedData.value.map((user) => (user.name ? user.name : ""));
 });
 
 onMounted(async () => {
   if (
     store.leagueInfo.length > 0 &&
+    store.leagueInfo[store.currentLeagueIndex] &&
     !store.leagueInfo[store.currentLeagueIndex].rosters[0].projections
   ) {
     loading.value = true;
@@ -27,6 +28,8 @@ onMounted(async () => {
 
 const getData = async () => {
   const currentLeague = store.leagueInfo[store.currentLeagueIndex];
+  const lastScoredWeek =
+    currentLeague.status === "complete" ? 0 : currentLeague.lastScoredWeek;
   await Promise.all(
     currentLeague.rosters.map(async (roster: any) => {
       const singleRoster: any[] = [];
@@ -34,9 +37,9 @@ const getData = async () => {
       const projectionPromises = roster.players.map((player: any) => {
         return getProjections(
           player,
-          store.leagueInfo[store.currentLeagueIndex].season,
-          currentLeague["currentWeek"] ? currentLeague["currentWeek"] : 0,
-          currentLeague["scoringType"]
+          currentLeague.season,
+          lastScoredWeek,
+          currentLeague.scoringType
         );
       });
 
@@ -56,7 +59,10 @@ const getData = async () => {
 };
 
 const formattedData = computed(() => {
-  if (store.leagueInfo.length == 0) {
+  if (
+    store.leagueInfo.length == 0 ||
+    !store.leagueInfo[store.currentLeagueIndex]
+  ) {
     return fakeProjectionData;
   }
   const topPositions = ["RB", "WR"];
@@ -270,6 +276,14 @@ const updateChartColor = () => {
     xaxis: {
       categories: categories.value,
     },
+    yaxis: {
+      labels: {
+        formatter: function (str: string) {
+          const n = 15;
+          return str.length > n ? str.slice(0, n - 1) + "..." : str;
+        },
+      },
+    },
   };
 };
 
@@ -321,6 +335,14 @@ const chartOptions = ref({
   xaxis: {
     categories: categories.value,
   },
+  yaxis: {
+    labels: {
+      formatter: function (str: string) {
+        const n = 15;
+        return str.length > n ? str.slice(0, n - 1) + "..." : str;
+      },
+    },
+  },
 });
 </script>
 <template>
@@ -347,7 +369,8 @@ const chartOptions = ref({
         <p
           class="mt-6 text-xs text-gray-500 sm:-mb-4 footer-font dark:text-gray-300"
         >
-          Rest of season projected points data from the Sleeper API.
+          Rest of season projected points data from the Sleeper API. If the
+          season is complete, entire season projections are shown.
         </p>
       </div>
       <HeatMap :formattedData="formattedData" class="mt-4" />

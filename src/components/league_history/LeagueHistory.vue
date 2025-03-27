@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from "vue";
+import { ref, onMounted, computed, watch, Ref } from "vue";
 import { maxBy, minBy } from "lodash";
 import { TableDataType } from "../../api/types.ts";
 import { useStore } from "../../store/store.ts";
@@ -10,6 +10,7 @@ import { createTableData } from "../../api/helper.ts";
 import AllMatchups from "./AllMatchups.vue";
 import MostPoints from "./MostPoints.vue";
 import FewestPoints from "./FewestPoints.vue";
+import ManagerComparison from "./ManagerComparison.vue";
 
 const store = useStore();
 const props = defineProps<{
@@ -22,40 +23,89 @@ const tableOrder = ref("wins");
 const hover = ref("");
 const previousLeagues = ref<string[]>([]);
 
-const checkPreviousLeagues = async (leagueId: string) => {
-  // for some reason sometimes 0 is returned as the previous league id
-  if (leagueId !== "0" && !previousLeagues.value.includes(leagueId)) {
-    const newLeagueInfo: any = await getLeague(leagueId);
-    loadingYear.value = newLeagueInfo["season"];
-    const leagueData = await getData(leagueId);
-    store.leagueInfo[store.currentLeagueIndex].previousLeagues.push(leagueData);
-    previousLeagues.value.push(leagueId); // prevent adding duplicates
-    if (leagueData.previousLeagueId) {
-      await checkPreviousLeagues(leagueData.previousLeagueId);
-    } else {
-      localStorage.setItem(
-        "leagueInfo",
-        JSON.stringify(store.leagueInfo as LeagueInfoType[])
-      );
-    }
+interface LeagueData {
+  previousLeagueId?: string;
+  season?: string;
+  // Add other relevant fields
+}
+
+interface LeagueStore {
+  leagueInfo: LeagueInfoType[];
+  currentLeagueIndex: number;
+}
+
+const fetchLeagueData = async (leagueId: string): Promise<LeagueData> => {
+  try {
+    // Fetch league info and data in parallel
+    const [leagueInfo, leagueData]: [any, any] = await Promise.all([
+      getLeague(leagueId),
+      getData(leagueId),
+    ]);
+
+    // Combine the data
+    return {
+      ...leagueData,
+      season: leagueInfo.season,
+    };
+  } catch (error) {
+    console.error(`Error fetching league data for ID ${leagueId}:`, error);
+    throw error;
   }
 };
 
-const getPreviousLeagues = async () => {
+const checkPreviousLeagues = async (
+  leagueId: string,
+  store: LeagueStore,
+  previousLeagues: Ref<string[]>,
+  loadingYear: Ref<string>
+): Promise<void> => {
+  // Early return if league is invalid or already processed
+  if (leagueId === "0" || previousLeagues.value.includes(leagueId)) {
+    return;
+  }
+
+  try {
+    const leagueData = await fetchLeagueData(leagueId);
+    loadingYear.value = leagueData.season || "";
+
+    // Update store and tracking arrays
+    store.leagueInfo[store.currentLeagueIndex].previousLeagues.push(leagueData);
+    previousLeagues.value.push(leagueId);
+
+    // Recursively fetch previous league if it exists
+    if (leagueData.previousLeagueId) {
+      await checkPreviousLeagues(
+        leagueData.previousLeagueId,
+        store,
+        previousLeagues,
+        loadingYear
+      );
+    } else {
+      // Only save to localStorage when we've reached the end of the chain
+      localStorage.setItem("leagueInfo", JSON.stringify(store.leagueInfo));
+    }
+  } catch (error) {
+    console.error(`Failed to process league ${leagueId}:`, error);
+  }
+};
+
+const getPreviousLeagues = async (
+  store: LeagueStore,
+  previousLeagues: Ref<string[]>,
+  loadingYear: Ref<string>
+): Promise<void> => {
   const previousLeagueId =
     store.leagueInfo[store.currentLeagueIndex].previousLeagueId;
 
   if (previousLeagueId) {
-    await checkPreviousLeagues(previousLeagueId);
+    await checkPreviousLeagues(
+      previousLeagueId,
+      store,
+      previousLeagues,
+      loadingYear
+    );
   }
 };
-
-const medianScoring = computed(() => {
-  if (store.leagueInfo[store.currentLeagueIndex]) {
-    return store.leagueInfo[store.currentLeagueIndex].medianScoring === 1;
-  }
-  return false;
-});
 
 const currentLeague = computed(() => {
   if (
@@ -114,7 +164,7 @@ onMounted(async () => {
     store.leagueInfo[store.currentLeagueIndex].previousLeagues.length == 0
   ) {
     isLoading.value = true;
-    await getPreviousLeagues();
+    await getPreviousLeagues(store, previousLeagues, loadingYear);
     isLoading.value = false;
   }
 });
@@ -127,7 +177,7 @@ watch(
       store.leagueInfo[store.currentLeagueIndex].previousLeagues.length == 0
     ) {
       isLoading.value = true;
-      await getPreviousLeagues();
+      await getPreviousLeagues(store, previousLeagues, loadingYear);
       isLoading.value = false;
     }
   }
@@ -140,31 +190,31 @@ const dataAllYears = computed(() => {
     wins: user.wins,
     losses: user.losses,
     points: user.pointsFor,
-    pointsArr: [...user.points],
+    pointsArr: user.points ? [...user.points] : [],
     pointSeason: store.leagueInfo[store.currentLeagueIndex]
       ? [
           {
             season: store.leagueInfo[store.currentLeagueIndex].season,
-            points: [...user.points],
+            points: user.points ? [...user.points] : [],
           },
         ]
       : [
           {
             season: "2023",
-            points: [
-              parseFloat((Math.random() * (200 - 100) + 100).toFixed(2)),
-            ],
+            points: Array.from({ length: 5 }, () =>
+              parseFloat((Math.random() * (200 - 100) + 100).toFixed(2))
+            ),
           },
           {
             season: "2024",
-            points: [
-              parseFloat((Math.random() * (200 - 100) + 100).toFixed(2)),
-            ],
+            points: Array.from({ length: 5 }, () =>
+              parseFloat((Math.random() * (200 - 100) + 100).toFixed(2))
+            ),
           },
         ],
     avatarImg: user.avatarImg,
     rosterId: user.rosterId,
-    matchups: [...user.matchups],
+    matchups: user.matchups ? [...user.matchups] : [],
     managerEfficiency: store.leagueInfo[store.currentLeagueIndex]
       ? user.managerEfficiency
       : 2 * user.managerEfficiency,
@@ -174,7 +224,11 @@ const dataAllYears = computed(() => {
     leagueWinner:
       store.leagueInfo[store.currentLeagueIndex] &&
       store.leagueInfo[store.currentLeagueIndex].status == "complete"
-        ? [Number(store.leagueInfo[store.currentLeagueIndex].leagueWinner)]
+        ? [
+            store.leagueInfo[store.currentLeagueIndex].leagueWinner
+              ? Number(store.leagueInfo[store.currentLeagueIndex].leagueWinner)
+              : store.leagueInfo[store.currentLeagueIndex].legacyWinner,
+          ]
         : [null],
     seasons: store.leagueInfo[store.currentLeagueIndex]
       ? [store.leagueInfo[store.currentLeagueIndex].season]
@@ -195,7 +249,7 @@ const dataAllYears = computed(() => {
             league.users,
             league.rosters,
             league.weeklyPoints,
-            medianScoring.value
+            league.medianScoring && league.medianScoring === 1 ? true : false
           );
           localStorage.setItem(league.leagueId, JSON.stringify(tableData));
         }
@@ -214,6 +268,9 @@ const dataAllYears = computed(() => {
             if (league.leagueWinner) {
               // @ts-ignore
               resultUser.leagueWinner.push(Number(league.leagueWinner));
+            } else if (league.legacyWinner) {
+              // @ts-ignore
+              resultUser.leagueWinner.push(league.legacyWinner);
             }
             if (user.matchups?.length) {
               resultUser.matchups.push(...user.matchups);
@@ -340,7 +397,7 @@ const worstManager = computed(() => {
         class="text-xs text-gray-700 uppercase dark:text-gray-300"
       >
         <tr>
-          <th scope="col" class="px-2 py-3 sm:px-6 dark:text-gray-200">
+          <th scope="col" class="px-4 py-3 sm:px-6 dark:text-gray-200">
             Team name
           </th>
           <th scope="col" class="px-2 py-3 sm:px-6">
@@ -494,7 +551,7 @@ const worstManager = computed(() => {
         >
           <th
             scope="row"
-            class="px-2 py-3 font-medium text-gray-900 sm:px-6 whitespace-nowrap dark:text-white"
+            class="px-4 py-3 font-medium text-gray-900 sm:px-6 whitespace-nowrap dark:text-white"
           >
             <div class="flex items-center">
               <img
@@ -516,7 +573,9 @@ const worstManager = computed(() => {
                 />
               </svg>
               <p class="ml-2">{{ index + 1 }}.&nbsp;</p>
-              <p class="truncate max-w-36 sm:max-w-48">{{ user.name }}</p>
+              <p class="truncate max-w-36 sm:max-w-48">
+                {{ user.name ? user.name : "Ghost Roster" }}
+              </p>
             </div>
           </th>
           <td
@@ -689,6 +748,7 @@ const worstManager = computed(() => {
     />
   </div>
   <AllMatchups v-if="!isLoading" :tableData="dataAllYears" class="mt-4" />
+  <ManagerComparison v-if="!isLoading" :tableData="dataAllYears" class="mt-4" />
   <div v-if="!isLoading" class="flex flex-wrap mt-4 md:flex-nowrap">
     <MostPoints :tableData="dataAllYears" />
     <FewestPoints :tableData="dataAllYears" class="mt-4 ml-0 md:mt-0 md:ml-4" />
@@ -710,7 +770,7 @@ const worstManager = computed(() => {
         fill="currentFill"
       />
     </svg>
-    <p class="flex justify-center text-lg dark:text-white">
+    <p v-if="loadingYear" class="flex justify-center text-lg dark:text-white">
       Loading
       <span class="font-bold">&nbsp;{{ loadingYear }}&nbsp;</span>season...
     </p>

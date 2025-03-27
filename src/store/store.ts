@@ -100,6 +100,30 @@ export const useStore = defineStore("main", {
         item.weeklyReport = payload;
       }
     },
+    addTradeNames(leagueId: string, payload: any[]) {
+      const item = this.leagueInfo.find((obj) => obj.leagueId === leagueId);
+      if (item) {
+        item.tradeNames = payload;
+      }
+    },
+    addDraftPicks(leagueId: string, payload: any[]) {
+      const item = this.leagueInfo.find((obj) => obj.leagueId === leagueId);
+      if (item) {
+        item.draftPicks = payload;
+      }
+    },
+    addDraftMetadata(leagueId: string, payload: any) {
+      const item = this.leagueInfo.find((obj) => obj.leagueId === leagueId);
+      if (item) {
+        item.draftMetadata = payload;
+      }
+    },
+    addPlayerRankings(leagueId: string, payload: any) {
+      const item = this.leagueInfo.find((obj) => obj.leagueId === leagueId);
+      if (item) {
+        item.playerRankings = payload;
+      }
+    },
     addYearEndReport(leagueId: string, payload: string) {
       const item = this.leagueInfo.find((obj) => obj.leagueId === leagueId);
       if (item) {

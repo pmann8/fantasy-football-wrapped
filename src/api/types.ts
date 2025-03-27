@@ -7,6 +7,7 @@ export type LeagueInfoType = {
   seasonType: string;
   leagueId: string;
   leagueWinner: string;
+  legacyWinner: number;
   lastUpdated: number;
   previousLeagueId: string;
   lastScoredWeek: number;
@@ -16,6 +17,8 @@ export type LeagueInfoType = {
   rosters: any[];
   weeklyPoints: [];
   transactions: [];
+  trades: [];
+  tradeNames: any[];
   previousLeagues: any[];
   status: string;
   currentWeek: number;
@@ -26,6 +29,10 @@ export type LeagueInfoType = {
   weeklyReport?: string;
   yearEndReport?: string;
   playoffType: number;
+  draftId: string;
+  draftPicks: any[];
+  draftMetadata: any;
+  playerRankings: any;
 };
 
 export type RosterType = {

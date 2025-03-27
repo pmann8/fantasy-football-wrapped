@@ -1,5 +1,10 @@
-import { getWeeklyPoints, getTotalTransactions } from "./helper";
-import { round } from "lodash";
+import {
+  getWeeklyPoints,
+  getTotalTransactions,
+  getTrades,
+  calculateDraftRank,
+} from "./helper";
+import { round, mean } from "lodash";
 
 export const seasonType: { [key: number]: string } = {
   0: "Redraft",
@@ -118,6 +123,66 @@ export const inputLeague = async (
   }
 };
 
+export const getStats = async (
+  player: string,
+  year: string,
+  scoringType: number
+) => {
+  let rank = "pos_rank_ppr";
+  let ppg = "pts_ppr";
+  if (scoringType === 0) {
+    rank = "pos_rank_std";
+    ppg = "pts_std";
+  } else if (scoringType === 0.5) {
+    rank = "pos_rank_half_ppr";
+    ppg = "pts_half_ppr";
+  }
+  const response = await fetch(
+    `https://api.sleeper.com/stats/nfl/player/${player}?season_type=regular&season=${year}`
+  );
+  const result = await response.json();
+  return result
+    ? {
+        rank: result["stats"][rank],
+        points: result["stats"][ppg],
+        ppg: result["stats"][ppg] / result["stats"]["gp"],
+        firstName: result["player"]["first_name"],
+        lastName: result["player"]["last_name"],
+        position: result["player"]["position"],
+        team: result["player"]["position"],
+        id: result["player_id"],
+      }
+    : null;
+};
+
+export const getTradeValue = async (
+  player: string,
+  year: string,
+  weekTraded: number,
+  scoringType: number
+) => {
+  let rank = "pos_rank_ppr";
+  if (scoringType === 0) {
+    rank = "pos_rank_std";
+  } else if (scoringType === 0.5) {
+    rank = "pos_rank_half_ppr";
+  }
+  const response = await fetch(
+    `https://api.sleeper.com/stats/nfl/player/${player}?season_type=regular&season=${year}&grouping=week`
+  );
+  const result = await response.json();
+  const weeklyRanks = Object.values(result)
+    .slice(weekTraded)
+    .map((week: any) => {
+      return week && week["stats"] ? week["stats"][rank] : 0;
+    })
+    .filter((num) => num !== 0 && num !== 999);
+
+  return weeklyRanks.length > 1
+    ? parseFloat(mean(weeklyRanks).toFixed(1))
+    : null;
+};
+
 export const getWeeklyProjections = async (
   player: string,
   year: string,
@@ -204,6 +269,57 @@ export const getAllLeagues = async (userId: string, season: string) => {
   return await response.json();
 };
 
+export const getDraftMetadata = async (draftId: string) => {
+  const response = await fetch(`https://api.sleeper.app/v1/draft/${draftId}`);
+  return await response.json();
+};
+
+export const getDraftPicks = async (
+  draftId: string,
+  season: string,
+  scoringType: number,
+  seasonType: string
+) => {
+  const response = await fetch(
+    `https://api.sleeper.app/v1/draft/${draftId}/picks`
+  );
+  const draftPicks = await response.json();
+
+  const picksWithStats = await Promise.all(
+    draftPicks.map(async (pick: any) => {
+      const playerStats: any = await getStats(
+        pick["player_id"],
+        season,
+        scoringType
+      );
+
+      return {
+        firstName: pick["metadata"]["first_name"],
+        lastName: pick["metadata"]["last_name"],
+        playerId: pick["player_id"],
+        position: pick["metadata"]["position"],
+        pickNumber: pick["pick_no"],
+        draftSlot: pick["draft_slot"],
+        team: pick["metadata"]["team"],
+        round: pick["round"],
+        rosterId: pick["roster_id"],
+        userId: pick["picked_by"],
+        rank: playerStats["rank"],
+        pickRank: calculateDraftRank(
+          pick["pick_no"],
+          seasonType === "Dynasty" && draftPicks.length < 100
+            ? playerStats["rank"] / 6
+            : playerStats["rank"],
+          pick["round"],
+          pick["metadata"]["position"],
+          playerStats["ppg"]
+        ),
+      };
+    })
+  );
+  return picksWithStats;
+};
+
 export const getLeague = async (leagueId: string) => {
   try {
     const response = await fetch(
@@ -226,6 +342,7 @@ export const getLeague = async (leagueId: string) => {
         rosterPositions: [],
         playoffTeams: 0,
         playoffType: 0,
+        draftId: "",
       };
     }
     const league = await response.json();
@@ -247,6 +364,7 @@ export const getLeague = async (leagueId: string) => {
       rosterPositions: league["roster_positions"],
       playoffTeams: league["settings"]["playoff_teams"],
       playoffType: league["settings"]["playoff_type"],
+      draftId: league["draft_id"],
     };
   } catch (error) {
     return error;
@@ -355,6 +473,7 @@ export const getData = async (leagueId: string) => {
   // Determine the number of weeks to process
   let numberOfWeeks: any;
   let currentWeek: number | undefined;
+  let legacyWinner: number | undefined;
 
   if (newLeagueInfo.status === "in_season") {
     const leagueState = await getCurrentLeagueState();
@@ -363,16 +482,24 @@ export const getData = async (leagueId: string) => {
     newLeagueInfo.currentWeek = currentWeek;
   } else {
     numberOfWeeks = newLeagueInfo.regularSeasonLength;
+    winnersBracket.forEach((matchup) => {
+      if (matchup.p === 1) {
+        legacyWinner = matchup.w;
+      }
+    });
   }
 
   // Parallel requests for weekly data
+  const trades: any = [];
   const [weeklyPoints, users, transactionPromises] = await Promise.all([
     getWeeklyPoints(leagueId, currentWeek ?? newLeagueInfo.lastScoredWeek),
     getUsers(leagueId),
     Promise.all(
-      Array.from({ length: numberOfWeeks + 1 }, (_, i) =>
-        getTransactions(leagueId, i + 1).then(getTotalTransactions)
-      )
+      Array.from({ length: numberOfWeeks + 1 }, async (_, i) => {
+        const weeklyTransaction = await getTransactions(leagueId, i + 1);
+        trades.push(getTrades(weeklyTransaction));
+        return getTotalTransactions(weeklyTransaction);
+      })
     ),
   ]);
 
@@ -399,6 +526,8 @@ export const getData = async (leagueId: string) => {
     weeklyPoints,
     users: processedUsers,
     transactions,
+    trades: trades.flat(),
+    legacyWinner: legacyWinner,
     lastUpdated: new Date().getTime(),
   };
 };

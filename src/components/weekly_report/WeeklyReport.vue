@@ -14,9 +14,13 @@ const props = defineProps<{
 const weeklyReport: any = ref("");
 const rawWeeklyReport: any = ref("");
 const playerNames = ref([]);
+const loading = ref(false);
 
 const weeks = computed(() => {
-  if (store.leagueInfo.length == 0) {
+  if (
+    store.leagueInfo.length == 0 ||
+    !store.leagueInfo[store.currentLeagueIndex]
+  ) {
     return [...Array(15).keys()].slice(1).reverse();
   }
   if (props.tableData[0].matchups) {
@@ -36,7 +40,10 @@ const weeks = computed(() => {
 });
 
 const playoffWeeks = computed(() => {
-  if (store.leagueInfo.length > 0) {
+  if (
+    store.leagueInfo.length > 0 &&
+    store.leagueInfo[store.currentLeagueIndex]
+  ) {
     const currentLeague = store.leagueInfo[store.currentLeagueIndex];
     const result: number[] = [];
     for (
@@ -103,13 +110,21 @@ onMounted(async () => {
   if (
     store.leagueInfo.length > 0 &&
     props.tableData[0].matchups &&
+    store.leagueInfo[store.currentLeagueIndex] &&
     !store.leagueInfo[store.currentLeagueIndex].weeklyReport
   ) {
+    loading.value = true;
     await fetchPlayerNames();
     await getReport();
-  } else if (store.leagueInfo.length > 0) {
-    const savedText: any =
-      store.leagueInfo[store.currentLeagueIndex].weeklyReport;
+    loading.value = false;
+  } else if (
+    store.leagueInfo.length > 0 &&
+    store.leagueInfo[store.currentLeagueIndex]
+  ) {
+    const savedText: any = store.leagueInfo[store.currentLeagueIndex]
+      .weeklyReport
+      ? store.leagueInfo[store.currentLeagueIndex].weeklyReport
+      : "";
     weeklyReport.value = savedText;
     rawWeeklyReport.value = savedText
       .replace(/<b>(.*?)<\/b>/g, "**$1**")
@@ -152,11 +167,15 @@ const reportPrompt = computed(() => {
   if (isPlayoffs.value) {
     props.tableData.forEach((user: TableDataType, index: number) => {
       if (user.matchups[currentWeek.value - 1]) {
+        const week: number = currentWeek.value - 1;
         result.push({
           name: user.name,
-          matchupNumber: user.matchups[currentWeek.value - 1],
-          playerPoints: user.starterPoints[currentWeek.value - 1],
+          matchupNumber: user.matchups[week],
+          winner:
+            getMatchupWinner(user.matchups[week], week) === user.points[week],
+          playerPoints: user.starterPoints[week],
           playerNames: playerNames.value[index],
+          pointsScored: user.points[week],
           inLosersBracket: losersBracketIDs.value.includes(user.rosterId),
           inWinnersBracket: winnersBracketIDs.value.includes(user.rosterId),
         });
@@ -165,10 +184,14 @@ const reportPrompt = computed(() => {
   } else {
     props.tableData.forEach((user: TableDataType, index: number) => {
       if (user.matchups[currentWeek.value - 1]) {
+        const week: number = currentWeek.value - 1;
         result.push({
           name: user.name,
-          matchupNumber: user.matchups[currentWeek.value - 1],
-          playerPoints: user.starterPoints[currentWeek.value - 1],
+          matchupNumber: user.matchups[week],
+          playerPoints: user.starterPoints[week],
+          pointsScored: user.points[week],
+          winner:
+            getMatchupWinner(user.matchups[week], week) === user.points[week],
           playerNames: playerNames.value[index],
           currentRecord: `${user.wins}-${user.losses}`,
           currentRank: user.regularSeasonRank,
@@ -191,9 +214,13 @@ const numOfMatchups = computed(() => {
 });
 
 const sortedTableData = computed(() => {
-  return [...props.tableData].sort(
-    (a, b) => a.points[currentWeek.value - 1] - b.points[currentWeek.value - 1]
-  );
+  if (props.tableData[0].points) {
+    return [...props.tableData].sort(
+      (a, b) =>
+        a.points[currentWeek.value - 1] - b.points[currentWeek.value - 1]
+    );
+  }
+  return [];
 });
 
 const seriesData = computed(() => {
@@ -248,7 +275,9 @@ const chartOptions = ref({
     },
   },
   xaxis: {
-    categories: sortedTableData.value.map((user) => user.name),
+    categories: sortedTableData.value.map((user) =>
+      user.name ? user.name : ""
+    ),
     labels: {
       formatter: function (str: string) {
         const n = 17;
@@ -317,7 +346,9 @@ const updateChartColor = () => {
       },
     },
     xaxis: {
-      categories: sortedTableData.value.map((user) => user.name),
+      categories: sortedTableData.value.map((user) =>
+        user.name ? user.name : ""
+      ),
       labels: {
         formatter: function (str: string) {
           const n = 17;
@@ -367,8 +398,10 @@ watch(
     currentWeek.value = weeks.value[0];
     if (!store.leagueInfo[store.currentLeagueIndex].weeklyReport) {
       weeklyReport.value = "";
+      loading.value = true;
       await fetchPlayerNames();
       await getReport();
+      loading.value = false;
     }
     weeklyReport.value =
       store.leagueInfo[store.currentLeagueIndex].weeklyReport;
@@ -383,13 +416,17 @@ watch(
 const getRecord = (recordString: string, index: number) => {
   if (
     store.leagueInfo.length > 0 &&
+    store.leagueInfo[store.currentLeagueIndex] &&
     store.leagueInfo[store.currentLeagueIndex].medianScoring === 1
   ) {
     index = index * 2;
   }
-  const numWins = recordString.slice(0, index).split("W").length - 1;
-  const numLosses = recordString.slice(0, index).split("L").length - 1;
-  return `${numWins} - ${numLosses}`;
+  if (recordString) {
+    const numWins = recordString.slice(0, index).split("W").length - 1;
+    const numLosses = recordString.slice(0, index).split("L").length - 1;
+    return `${numWins} - ${numLosses}`;
+  }
+  return "0-0";
 };
 
 const getMatchupWinner = (matchupIndex: number, currentWeek: number) => {
@@ -415,7 +452,6 @@ watch(
 </script>
 <template>
   <div
-    v-if="props.tableData[0].matchups"
     class="h-full px-6 pt-4 mt-4 bg-white border border-gray-200 rounded-lg shadow custom-width dark:bg-gray-800 dark:border-gray-700"
   >
     <div class="flex items-center justify-between mb-3">
@@ -504,7 +540,7 @@ watch(
           just in the kitchen.
         </p>
       </div>
-      <div v-else>
+      <div v-else-if="loading">
         <div role="status" class="space-y-2.5 animate-pulse max-w-lg mt-2.5">
           <p class="text-gray-900 dark:text-gray-300">Generating Summary...</p>
           <div class="flex items-center w-full">
@@ -579,10 +615,10 @@ watch(
       <hr class="h-px mt-4 mb-2 bg-gray-200 border-0 dark:bg-gray-700" />
     </div>
     <p class="text-xl font-bold text-gray-900 dark:text-white">Matchups</p>
-    <div class="flex flex-wrap w-full mb-2 overflow-auto">
+    <div class="flex flex-wrap w-full mb-2 overflow-x-hidden">
       <div
         v-for="index in numOfMatchups"
-        class="block px-4 py-2.5 my-2 mr-4 text-gray-600 bg-white border border-gray-200 rounded-lg shadow w-80 dark:shadow-gray-600 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300"
+        class="block px-4 py-2.5 my-2 mr-4 text-gray-600 bg-white border border-gray-200 rounded-lg shadow w-80 custom-min-width dark:shadow-gray-600 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300"
       >
         <div v-for="user in sortedTableData">
           <div v-if="user.matchups[currentWeek - 1] == index">
@@ -608,7 +644,7 @@ watch(
                 </svg>
                 <div>
                   <p class="px-2 -mt-1 truncate max-w-28 xl:max-w-44">
-                    {{ user.name }}
+                    {{ user.name ? user.name : "Ghost Roster" }}
                   </p>
                   <p class="ml-2 text-xs">
                     ({{ getRecord(user.recordByWeek, currentWeek) }})
@@ -649,3 +685,10 @@ watch(
     ></apexchart>
   </div>
 </template>
+<style scoped>
+.custom-min-width {
+  @media (width >= 390px) {
+    min-width: 306px;
+  }
+}
+</style>

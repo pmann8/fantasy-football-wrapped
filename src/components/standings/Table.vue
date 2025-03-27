@@ -13,6 +13,7 @@ import BestManagerCard from "../standings/BestManagerCard.vue";
 import WorstManagerCard from "../standings/WorstManagerCard.vue";
 import TransactionsCard from "../standings/TransactionsCard.vue";
 import TransactionsChart from "../roster_management/TransactionsChart.vue";
+import Trades from "../roster_management/Trades.vue";
 import StandingsChart from "../standings/StandingsChart.vue";
 import ManagementCard from "../roster_management/ManagementCard.vue";
 import RankingGraph from "../roster_management/RankingGraph.vue";
@@ -22,6 +23,9 @@ import Tabs from "../util/Tabs.vue";
 import Projections from "../power_rankings/Projections.vue";
 import PlayoffPercentages from "../playoffs/PlayoffPercentages.vue";
 import WeeklyReport from "../weekly_report/WeeklyReport.vue";
+import Draft from "../draft/Draft.vue";
+import TeamRanking from "../power_rankings/TeamRanking.vue";
+
 const tableOrder = ref("wins");
 const hover = ref("");
 const props = defineProps<{
@@ -147,16 +151,23 @@ const mostMedianLosses = computed(() => {
 });
 
 const leagueWinner = computed(() => {
-  if (store.leagueInfo[store.currentLeagueIndex].status !== "complete") {
-    const projectedWinner = tableData.value.reduce((max: any, obj: any) =>
-      obj.winsAgainstAll > max.winsAgainstAll ? obj : max
-    );
-    return projectedWinner.rosterId;
+  if (store.leagueInfo[store.currentLeagueIndex]) {
+    if (store.leagueInfo[store.currentLeagueIndex].status !== "complete") {
+      const projectedWinner = tableData.value.reduce((max: any, obj: any) =>
+        obj.winsAgainstAll > max.winsAgainstAll ? obj : max
+      );
+      return projectedWinner.rosterId;
+    }
+    return store.leagueInfo[store.currentLeagueIndex].leagueWinner
+      ? Number(store.leagueInfo[store.currentLeagueIndex].leagueWinner)
+      : store.leagueInfo[store.currentLeagueIndex].legacyWinner;
   }
-  return Number(store.leagueInfo[store.currentLeagueIndex].leagueWinner);
+  return "";
 });
 const mostTransactions = computed(() => {
-  return store.leagueInfo[store.currentLeagueIndex].transactions;
+  return store.leagueInfo[store.currentLeagueIndex]
+    ? store.leagueInfo[store.currentLeagueIndex].transactions
+    : [];
 });
 
 const regularSeasonLength = computed(() => {
@@ -207,7 +218,7 @@ const cardHeight = computed(() => {
             class="text-xs text-gray-700 uppercase dark:text-gray-300"
           >
             <tr>
-              <th scope="col" class="px-2 py-3 sm:px-6 dark:text-gray-200">
+              <th scope="col" class="px-4 py-3 sm:px-6 dark:text-gray-200">
                 Team name
               </th>
               <th scope="col" class="px-2 py-3 sm:px-6">
@@ -389,7 +400,7 @@ const cardHeight = computed(() => {
             >
               <th
                 scope="row"
-                class="px-2 py-3 font-medium text-gray-900 sm:px-6 whitespace-nowrap dark:text-white"
+                class="px-4 py-3 font-medium text-gray-900 sm:px-6 whitespace-nowrap dark:text-white"
               >
                 <div class="flex items-center">
                   <img
@@ -411,7 +422,9 @@ const cardHeight = computed(() => {
                     />
                   </svg>
                   <p class="ml-2">{{ index + 1 }}.&nbsp;</p>
-                  <p class="truncate max-w-36 sm:max-w-48">{{ item.name }}</p>
+                  <p class="truncate max-w-36 sm:max-w-48">
+                    {{ item.name ? item.name : `Ghost Roster` }}
+                  </p>
                 </div>
               </th>
               <td
@@ -559,6 +572,7 @@ const cardHeight = computed(() => {
         class="mt-4"
       />
       <Projections class="mt-4" />
+      <TeamRanking :tableData="tableData" class="mt-4" />
     </div>
     <div v-if="store.currentTab === 'expectedWins'">
       <div class="flex flex-wrap md:flex-nowrap">
@@ -573,6 +587,7 @@ const cardHeight = computed(() => {
         <RankingGraph :tableData="tableData" class="mt-4 md:ml-4" />
       </div>
       <TransactionsChart class="mt-4" />
+      <Trades class="mt-4" />
     </div>
     <div v-if="store.currentTab === 'playoffs'">
       <PlayoffPercentages :propsTableData="sortedPropsTableData" class="mt-4" />
@@ -585,6 +600,9 @@ const cardHeight = computed(() => {
         :regular-season-length="regularSeasonLength"
       />
       <WeeklyReport v-else :tableData="tableData" :regular-season-length="15" />
+    </div>
+    <div v-if="store.currentTab === 'draft'">
+      <Draft class="mt-4" />
     </div>
     <div v-if="store.currentTab === 'leagueHistory'">
       <LeagueHistory :tableData="tableData" />

@@ -245,6 +245,7 @@ const tableData = computed(() => {
   <div
     v-if="
       store.leagueInfo.length != 0 &&
+      store.leagueInfo[store.currentLeagueIndex] &&
       store.leagueInfo[store.currentLeagueIndex].status !== 'complete'
     "
   >
@@ -256,7 +257,8 @@ const tableData = computed(() => {
   `"
     >
       <p
-        class="w-full pt-2 text-lg font-semibold text-center text-gray-700 dark:text-gray-200"
+        class="w-full pt-2 text-lg font-semibold text-center text-gray-700 cursor-pointer dark:text-gray-200"
+        @click="showData = !showData"
       >
         Playoff Odds
       </p>
@@ -311,7 +313,7 @@ const tableData = computed(() => {
           class="text-xs text-gray-700 uppercase dark:text-gray-200"
         >
           <tr>
-            <th scope="col" class="px-2 py-3 sm:px-6 w-60 dark:text-gray-200">
+            <th scope="col" class="px-4 py-3 sm:px-6 w-60 dark:text-gray-200">
               Team Name
             </th>
             <th v-for="i in playoffTeams" scope="col" class="px-2 py-3">
@@ -341,7 +343,7 @@ const tableData = computed(() => {
           >
             <th
               scope="row"
-              class="px-2 font-medium text-gray-900 truncate sm:px-6 max-w-52 whitespace-nowrap dark:text-white"
+              class="px-4 font-medium text-gray-900 truncate sm:px-6 max-w-52 whitespace-nowrap dark:text-white"
             >
               {{ item.name }}
             </th>

@@ -10,7 +10,8 @@ const props = defineProps<{
 const mostPoints = computed(() => {
   const allPointsWithDetails = props.tableData.flatMap((obj) =>
     obj.pointSeason.flatMap((seasonObj: any) =>
-      seasonObj.points.map((point: number) => ({
+      seasonObj.points.map((point: number, index: number) => ({
+        week: index + 1,
         name: obj.name,
         season: seasonObj.season,
         point,
@@ -27,7 +28,7 @@ const mostPoints = computed(() => {
 </script>
 <template>
   <div
-    class="relative w-full overflow-x-auto rounded-lg shadow-md md:max-w-xl"
+    class="relative w-full overflow-x-auto rounded-lg shadow-md md:max-w-2xl"
     :class="store.darkMode ? 'dark-custom-bg-color' : 'light-custom-bg-color'"
   >
     <p
@@ -45,19 +46,22 @@ const mostPoints = computed(() => {
         class="text-xs text-gray-700 uppercase dark:text-gray-300"
       >
         <tr>
-          <th scope="col" class="px-2 py-6 sm:px-6 dark:text-gray-200">
+          <th scope="col" class="px-4 py-6 sm:px-6 dark:text-gray-200">
             Team Name
           </th>
 
           <th scope="col" class="px-2 py-3">
             <div
-              class="flex items-center w-24 cursor-pointer dark:text-gray-200"
+              class="flex items-center cursor-pointer max-w-24 dark:text-gray-200"
             >
               Points
             </div>
           </th>
           <th scope="col" class="px-1 py-3">
             <div>Season</div>
+          </th>
+          <th scope="col" class="px-1 py-3">
+            <div>Week</div>
           </th>
         </tr>
       </thead>
@@ -69,7 +73,7 @@ const mostPoints = computed(() => {
         >
           <th
             scope="row"
-            class="px-2 font-medium text-gray-900 truncate sm:px-6 max-w-36 sm:max-w-56 whitespace-nowrap dark:text-white"
+            class="px-4 font-medium text-gray-900 truncate sm:px-6 max-w-36 sm:max-w-56 whitespace-nowrap dark:text-white"
           >
             {{ item.name }}
           </th>
@@ -78,6 +82,9 @@ const mostPoints = computed(() => {
           </td>
           <td class="px-2 py-3.5">
             {{ item.season }}
+          </td>
+          <td class="px-4 py-3.5">
+            {{ item.week }}
           </td>
         </tr>
       </tbody>

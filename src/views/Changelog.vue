@@ -2,7 +2,180 @@
 import { useRouter } from "vue-router";
 
 const router = useRouter();
+// this should eventually be moved to the server side
 const data = [
+  {
+    date: "2/11/25",
+    content: [
+      {
+        type: "Feature",
+        text: ["Draft picks can now be sorted by score."],
+      },
+    ],
+  },
+  {
+    date: "1/8/25",
+    content: [
+      {
+        type: "Feature",
+        text: [
+          "Added a new section in the power rankings tab to show top performers in each position.",
+        ],
+      },
+    ],
+  },
+  {
+    date: "1/6/25",
+    content: [
+      {
+        type: "Update",
+        text: [
+          "Updated the formatting and layout of the draft picks for auction and linear drafts.",
+        ],
+      },
+    ],
+  },
+  {
+    date: "1/5/25",
+    content: [
+      {
+        type: "Feature",
+        text: [
+          "Added rankings next to each player in the trades section. The value represents the average positional ranking for every week after the trade date. ",
+        ],
+      },
+    ],
+  },
+  {
+    date: "1/4/25",
+    content: [
+      {
+        type: "Fix",
+        text: [
+          "Fixed the draft order to correctly support leagues that use a third round reversal.",
+        ],
+      },
+      {
+        type: "Update",
+        text: [
+          "The draft rank formula has been updated to take points per game into account.",
+        ],
+      },
+    ],
+  },
+  {
+    date: "1/3/25",
+    content: [
+      {
+        type: "Fix",
+        text: [
+          "For completed leagues the roster projections now show data from the entire season instead of data from only the remaining weeks.",
+          "Added better error handling so 2025 leagues are supported.",
+        ],
+      },
+    ],
+  },
+  {
+    date: "12/29/24",
+    content: [
+      {
+        type: "Feature",
+        text: [
+          "Added a new manager comparison section in the league history tab to compare manager stats like record, points per game, championships, etc.",
+        ],
+      },
+    ],
+  },
+  {
+    date: "12/27/24",
+    content: [
+      {
+        type: "Feature",
+        text: [
+          "Added a new draft section where all draft picks along with a draft pick rank are shown in a table. Note that this feature is still a work in progress - the current ranks may be misleading on inaccruate.",
+        ],
+      },
+    ],
+  },
+  {
+    date: "12/23/24",
+    content: [
+      {
+        type: "Fix",
+        text: [
+          "Fixed an issue where the expected wins in league history were not being calculated correctly.",
+        ],
+      },
+    ],
+  },
+  {
+    date: "12/22/24",
+    content: [
+      {
+        type: "Update",
+        text: [
+          "Updated the prompt and inputs for the AI generated weekly reports. The reports should no longer give incorrect winning teams. ",
+        ],
+      },
+    ],
+  },
+  {
+    date: "12/20/24",
+    content: [
+      {
+        type: "Update",
+        text: [
+          "Performance improvements across the entire site. The league history tab should load significantly faster now. Requests to the API are done in parallel.",
+        ],
+      },
+      {
+        type: "Fix",
+        text: [
+          "Leagues with a mismatched number of users and rosters are now supported.",
+        ],
+      },
+    ],
+  },
+  {
+    date: "12/19/24",
+    content: [
+      {
+        type: "Feature",
+        text: [
+          "All league trades are now visible under the roster management tab. Trades include draft picks and waiver budget.",
+        ],
+      },
+      {
+        type: "Fix",
+        text: [
+          "Fixed an issue where multiple leagues being loaded at the same time caused league data to appear incorrectly.",
+        ],
+      },
+    ],
+  },
+  {
+    date: "12/17/24",
+    content: [
+      {
+        type: "Fix",
+        text: [
+          "Fixed an issue where the projected player points were not being being fetched correctly.",
+        ],
+      },
+    ],
+  },
+  {
+    date: "12/16/24",
+    content: [
+      {
+        type: "Fix",
+        text: [
+          "Fixed issues with the loser's playoff bracket formatting. The final placements were being calculated incorrectly.",
+          "Leagues from 2021 or older should now show the league winner correctly.",
+        ],
+      },
+    ],
+  },
   {
     date: "12/14/24",
     content: [
@@ -88,7 +261,9 @@ const data = [
           <ul
             class="space-y-1 text-gray-800 list-disc list-inside dark:text-gray-300"
           >
-            <li v-for="text in content.text" class="text-base">{{ text }}</li>
+            <li v-for="text in content.text" class="my-1 text-base">
+              {{ text }}
+            </li>
           </ul>
         </div>
         <hr class="h-px my-2 bg-gray-200 border-0 dark:bg-gray-700" />

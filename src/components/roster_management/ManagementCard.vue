@@ -69,7 +69,7 @@ const listPadding = computed(() => {
         class="text-xs text-gray-700 uppercase dark:text-gray-300"
       >
         <tr>
-          <th scope="col" class="px-2 py-3 sm:px-6 dark:text-gray-200">
+          <th scope="col" class="px-4 py-3 sm:px-6 dark:text-gray-200">
             Team Name
           </th>
 
@@ -78,12 +78,12 @@ const listPadding = computed(() => {
               @click="tableOrder = 'points'"
               @mouseover="hover = 'points'"
               @mouseleave="hover = ''"
-              class="flex items-center w-20 cursor-pointer dark:text-gray-200"
+              class="flex items-center w-16 mr-2 cursor-pointer sm:mr-0 sm:w-20 dark:text-gray-200"
             >
               Total Points
               <div>
                 <svg
-                  class="w-3 h-3 ms-1.5 fill-slate-400"
+                  class="w-3 h-3 ms-1.5 fill-slate-400 sm:-ml-5"
                   :class="{
                     'fill-slate-600 dark:fill-slate-50': tableOrder == 'points',
                   }"
@@ -110,12 +110,12 @@ const listPadding = computed(() => {
               @click="tableOrder = 'potentialPoints'"
               @mouseover="hover = 'potentialPoints'"
               @mouseleave="hover = ''"
-              class="flex items-center w-24 cursor-pointer dark:text-gray-200"
+              class="flex items-center cursor-pointer xl:w-24 dark:text-gray-200"
             >
               Potential Points
               <div>
                 <svg
-                  class="w-3 h-3 ms-1.5 fill-slate-400"
+                  class="w-3 h-3 ms-1.5 fill-slate-400 xl:ml-0 -ml-5"
                   :class="{
                     'fill-slate-600 dark:fill-slate-50':
                       tableOrder == 'potentialPoints',
@@ -182,9 +182,9 @@ const listPadding = computed(() => {
           <th
             scope="row"
             :class="listPadding"
-            class="px-2 font-medium text-gray-900 truncate sm:px-6 max-w-56 whitespace-nowrap dark:text-white"
+            class="px-4 font-medium text-gray-900 truncate sm:px-6 max-w-56 whitespace-nowrap dark:text-white"
           >
-            {{ item.name }}
+            {{ item.name ? item.name : "Ghost Roster" }}
           </th>
           <td
             class="py-2 pl-1 pr-3"

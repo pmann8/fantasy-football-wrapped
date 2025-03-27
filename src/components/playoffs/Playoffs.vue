@@ -46,9 +46,10 @@ const playoffType = computed(() => {
 // check losers bracket type - true means 3 rounds, false means 2 rounds
 // sleeper api bracket data is confusing
 const bracketType = computed(() => {
-  return store.leagueInfo[store.currentLeagueIndex]
-    ? losersBracket.value.some((obj) => obj["p"] === 5)
-    : true;
+  if (store.leagueInfo[store.currentLeagueIndex]) {
+    return losersBracket.value.some((obj) => obj["p"] === 5);
+  }
+  return true;
 });
 
 const losersBracketFirstLossTitle = computed(() => {
@@ -78,7 +79,7 @@ const getPointsColor = (team1: number, team2: number) => {
   }
 };
 
-const matchRosterId = (rosterId: string, placement?: number) => {
+const matchRosterId = (rosterId: number, placement?: number) => {
   const rosters = store.leagueInfo[store.currentLeagueIndex]
     ? store.leagueInfo[store.currentLeagueIndex].rosters
     : fakeRosters;
@@ -113,14 +114,18 @@ const getPointsScored = (rosterId: number, week: number) => {
 
 const getRecord = (rosterId: number) => {
   const user: any = props.tableData.find((val) => val.rosterId === rosterId);
-  const numWins = user.recordByWeek.split("W").length - 1;
-  const numLosses = user.recordByWeek.split("L").length - 1;
-  return `${numWins} - ${numLosses}`;
+  if (user.recordByWeek) {
+    const numWins = user.recordByWeek.split("W").length - 1;
+    const numLosses = user.recordByWeek.split("L").length - 1;
+    return `${numWins} - ${numLosses}`;
+  }
+  return "0-0";
 };
 
 const finalPlacements = computed(() => {
   if (
     store.leagueInfo.length > 0 &&
+    store.leagueInfo[store.currentLeagueIndex] &&
     store.leagueInfo[store.currentLeagueIndex].status != "complete"
   ) {
     return [];
@@ -139,16 +144,55 @@ const finalPlacements = computed(() => {
     }
   });
 
-  losersBracket.value.forEach((matchup) => {
-    if (matchup.p === 1) {
-      result.push(matchRosterId(matchup.w, totalRosters.value));
-      result.push(matchRosterId(matchup.l, totalRosters.value - 1));
-    } else if (matchup.p === 3) {
-      result.push(matchRosterId(matchup.w, totalRosters.value - 2));
-      result.push(matchRosterId(matchup.l, totalRosters.value - 3));
-    } else if (matchup.p === 5) {
-      result.push(matchRosterId(matchup.w, totalRosters.value - 4));
-      result.push(matchRosterId(matchup.l, totalRosters.value - 5));
+  // the logic is backwards if losers bracket is consolation bracket vs toilet bowl
+  if (playoffType.value === 1) {
+    losersBracket.value.forEach((matchup) => {
+      if (!bracketType.value) {
+        if (matchup.p === 1) {
+          result.push(matchRosterId(matchup.w, totalRosters.value - 3));
+          result.push(matchRosterId(matchup.l, totalRosters.value - 2));
+        } else if (matchup.p === 3) {
+          result.push(matchRosterId(matchup.w, totalRosters.value - 1));
+          result.push(matchRosterId(matchup.l, totalRosters.value));
+        }
+        // do 10 man leagues have 3 playoff rounds in the losers bracket?
+        // else if (matchup.p === 5) {
+        //   result.push(matchRosterId(matchup.w, totalRosters.value - 1));
+        //   result.push(matchRosterId(matchup.l, totalRosters.value));
+        // }
+      } else {
+        if (matchup.p === 1) {
+          result.push(matchRosterId(matchup.w, totalRosters.value - 5));
+          result.push(matchRosterId(matchup.l, totalRosters.value - 4));
+        } else if (matchup.p === 3) {
+          result.push(matchRosterId(matchup.w, totalRosters.value - 3));
+          result.push(matchRosterId(matchup.l, totalRosters.value - 2));
+        } else if (matchup.p === 5) {
+          result.push(matchRosterId(matchup.w, totalRosters.value - 1));
+          result.push(matchRosterId(matchup.l, totalRosters.value));
+        }
+      }
+    });
+  } else {
+    losersBracket.value.forEach((matchup) => {
+      if (matchup.p === 1) {
+        result.push(matchRosterId(matchup.w, totalRosters.value));
+        result.push(matchRosterId(matchup.l, totalRosters.value - 1));
+      } else if (matchup.p === 3) {
+        result.push(matchRosterId(matchup.w, totalRosters.value - 2));
+        result.push(matchRosterId(matchup.l, totalRosters.value - 3));
+      } else if (matchup.p === 5) {
+        result.push(matchRosterId(matchup.w, totalRosters.value - 4));
+        result.push(matchRosterId(matchup.l, totalRosters.value - 5));
+      }
+    });
+  }
+  // some playoff formats leave teams out
+  props.tableData.forEach((user) => {
+    if (result.every((obj: any) => obj !== undefined)) {
+      if (!result.find((res: any) => res.id === user.id)) {
+        result.push(matchRosterId(user.rosterId, totalRosters.value / 2));
+      }
     }
   });
   return result.sort((a: any, b: any) => a.placement - b.placement);
@@ -171,10 +215,10 @@ const numberOfLoserRounds = computed(() => {
     <LeagueSummary :tableData="tableData" :finalPlacements="finalPlacements" />
     <div class="flex flex-wrap my-4 lg:flex-nowrap">
       <div
-        class="block w-full p-4 text-black bg-white border border-gray-200 rounded-lg shadow lg:w-3/4 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+        class="block w-full p-4 overflow-x-auto text-black bg-white border border-gray-200 rounded-lg shadow lg:w-3/4 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
       >
         <p class="text-3xl font-bold">Winner's Bracket</p>
-        <div class="flex flex-wrap">
+        <div class="flex flex-nowrap">
           <div v-for="index in numberOfWinnerRounds">
             <p class="mt-2 -mb-2 text-xl font-semibold">Round {{ index }}</p>
             <hr
@@ -453,10 +497,10 @@ const numberOfLoserRounds = computed(() => {
     <!-- losers bracket -->
     <div class="flex flex-wrap lg:flex-nowrap">
       <div
-        class="block w-full p-4 text-black bg-white border border-gray-200 rounded-lg shadow lg:mr-4 lg:w-3/4 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+        class="block w-full p-4 overflow-x-auto text-black bg-white border border-gray-200 rounded-lg shadow lg:mr-4 lg:w-3/4 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
       >
         <p class="text-3xl font-bold">Loser's Bracket</p>
-        <div class="flex flex-wrap">
+        <div class="flex flex-nowrap">
           <div v-for="index in numberOfLoserRounds">
             <p class="mt-2 -mb-2 text-lg font-semibold">Round {{ index }}</p>
             <hr class="h-px my-6 bg-gray-200 border-0 dark:bg-gray-700" />
@@ -726,11 +770,11 @@ const numberOfLoserRounds = computed(() => {
   @media (width >= 1536px) {
     width: 17.5rem;
   }
-  @media (1300px <width < 1536px) {
+  @media (1280px < width < 1536px) {
     width: 16.5rem;
   }
-  @media (width <= 1300px) {
-    width: 13rem;
+  @media (width <= 1280px) {
+    width: 13.5rem;
   }
 }
 </style>

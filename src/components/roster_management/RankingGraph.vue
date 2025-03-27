@@ -34,7 +34,6 @@ const series = computed(() => {
   });
   return result;
 });
-
 const chartTextColor = computed(() => {
   return store.darkMode ? "#ffffff" : "#111827";
 });
@@ -43,7 +42,6 @@ const updateChartColor = () => {
   chartOptions.value = {
     ...chartOptions.value,
     chart: {
-      offsetX: 15,
       foreColor: store.darkMode ? "#ffffff" : "#111827",
       id: "ranking-bump-chart",
       toolbar: {
@@ -81,7 +79,6 @@ watch(
 
 const chartOptions = ref({
   chart: {
-    offsetX: 15,
     foreColor: chartTextColor.value,
     id: "potential-points",
     toolbar: {
@@ -181,6 +178,7 @@ const chartOptions = ref({
     <apexchart
       width="100%"
       height="475"
+      class="ml-6"
       :options="chartOptions"
       :series="series"
     ></apexchart>

@@ -3,6 +3,87 @@ import { groupBy, flatten, zip, mean, max, min, countBy } from "lodash";
 import { getMatchup } from "./api";
 import { RosterType, UserType } from "./types";
 
+const getTierMultiplier = (position: string, rank: number) => {
+  switch (position) {
+    case "RB":
+      if (rank <= 6) return 2.0; // Elite RB1s
+      if (rank <= 12) return 1.7; // Strong RB1s
+      if (rank <= 18) return 1.4; // RB2s
+      if (rank <= 24) return 1.2; // Solid RB2s
+      if (rank <= 30) return 1.1; // RB3s
+      if (rank <= 36) return 1.0; // Bench RBs
+      return 0.8; // Deep bench
+
+    case "WR":
+      if (rank <= 6) return 1.8; // Elite WR1s
+      if (rank <= 12) return 1.5; // Strong WR1s
+      if (rank <= 18) return 1.3; // WR2s
+      if (rank <= 24) return 1.1; // Solid WR2s
+      if (rank <= 30) return 1.0; // WR3s
+      if (rank <= 36) return 0.9; // Bench WRs
+      return 0.7; // Deep bench
+
+    case "TE":
+      if (rank <= 3) return 2.0; // Elite TEs
+      if (rank <= 6) return 1.6; // Strong TE1s
+      if (rank <= 12) return 1.4; // Startable TEs
+      if (rank <= 18) return 1.1; // Backup TEs
+      return 0.8; // Deep bench
+
+    case "QB":
+      if (rank <= 3) return 1.6; // Elite QBs
+      if (rank <= 6) return 1.4; // Strong QB1s
+      if (rank <= 12) return 1.2; // Startable QBs
+      if (rank <= 18) return 1.0; // Backup QBs
+      return 0.7; // Deep bench
+
+    case "K":
+      if (rank <= 3) return 1.3;
+      return 1.0;
+
+    case "DEF":
+      if (rank <= 3) return 1.3;
+      return 1.0;
+    default:
+      return 1.0;
+  }
+};
+
+export const roundToOneDecimal = (number: number) => {
+  const rounded = parseFloat(number.toFixed(1));
+  // If it's effectively zero after rounding, return 0.0
+  return rounded === 0 ? "0.0" : rounded.toFixed(1);
+};
+
+export const calculateDraftRank = (
+  pickNumber: number,
+  positionRank: number,
+  round: number,
+  position: string,
+  ppg: number
+) => {
+  const positionWeights: any = {
+    RB: 1.0,
+    WR: 0.9,
+    TE: 1.1,
+    QB: 0.7,
+    K: 0.4,
+    DEF: 0.4,
+  };
+  if (positionRank === 0) return roundToOneDecimal(0); // player did not play
+  const firstRoundAdjust = round === 1 ? 2 : 0;
+  const posWeightMultiplier =
+    position in positionWeights ? positionWeights[position] : 1;
+  const baseMultiplier =
+    posWeightMultiplier * getTierMultiplier(position, positionRank);
+  const rankScore =
+    ((pickNumber + firstRoundAdjust - positionRank) / pickNumber) *
+    baseMultiplier;
+  const ppgScore = (ppg / 25) * baseMultiplier; // 25 is generally around the max ppg for a season
+  const finalScore = roundToOneDecimal(rankScore * 0.7 + ppgScore * 0.3);
+  return Number(finalScore) > -3 ? finalScore : roundToOneDecimal(-3);
+};
+
 export const createTableData = (
   users: UserType[],
   rosters: RosterType[],
@@ -20,6 +101,10 @@ export const createTableData = (
       }
       return null;
     });
+    const ghostRosters: any = rosters.filter((roster) => roster.id === null);
+    if (ghostRosters.length > 0) {
+      combined.push(...ghostRosters);
+    }
     const filtered = combined.filter((a: any) => a !== null);
     const combinedPoints = filtered.map((a: any) => ({
       ...a,
@@ -177,9 +262,18 @@ export const getTotalTransactions = (transactions: any) => {
     if (shouldCount) {
       countMap[id] = (countMap[id] || 0) + 1;
     }
-
     return countMap;
   }, {});
+};
+
+export const getTrades = (transactions: any) => {
+  const result: any[] = [];
+  transactions.forEach((transaction: any) => {
+    if (transaction.status === "complete" && transaction.type === "trade") {
+      result.push(transaction);
+    }
+  });
+  return result;
 };
 
 export const getPowerRanking = (
@@ -208,13 +302,11 @@ export const getWeeklyPoints = async (
   regularSeasonLength: number,
   startWeek: number = 0
 ) => {
-  const allMatchups = [];
-  for (let i: number = startWeek; i < regularSeasonLength; i++) {
-    const singleWeek = await getMatchup(i + 1, leagueId);
-    if (singleWeek.every((matchup: any) => matchup.points !== 0)) {
-      allMatchups.push(singleWeek);
-    }
+  const promises = [];
+  for (let i = startWeek; i < regularSeasonLength; i++) {
+    promises.push(getMatchup(i + 1, leagueId));
   }
+  const allMatchups = await Promise.all(promises);
   const grouped = Object.values(groupBy(flatten(allMatchups), "rosterId"));
   const allTeams: Array<object> = [];
   grouped.forEach((group: any) => {
@@ -263,6 +355,182 @@ export const getWeeklyPoints = async (
   });
   return allTeams;
 };
+
+export const fakeTrades = [
+  {
+    team1: {
+      user: {
+        id: "1",
+        name: "Just the Tua Us",
+        avatar: "3fd3d500b13b04926820e10e9306f6ab",
+        avatarImg: "../avatars/avatar1.svg",
+        transactions: 14,
+      },
+      players: ["J.K. Dobbins"],
+      draftPicks: [],
+      waiverBudget: [],
+      value: [19],
+    },
+    team2: {
+      user: {
+        id: "2",
+        name: "Bijan Mustard",
+        avatar: "a77d198f5c82bd93d3da5bd10493f7cd",
+        avatarImg: "../avatars/avatar2.svg",
+        transactions: 10,
+      },
+      players: ["Zack Moss", "Tyler Allgeier"],
+      draftPicks: [],
+      waiverBudget: [],
+      value: [32.8, 41.2],
+    },
+  },
+  {
+    team1: {
+      user: {
+        id: "3",
+        name: "The Princess McBride",
+        avatar: "8eb8f8bf999945d523f2c4033f70473e",
+        avatarImg: "../avatars/avatar3.svg",
+        transactions: 25,
+      },
+      players: ["Justice Hill"],
+      draftPicks: [],
+      waiverBudget: [],
+      value: [38.8],
+    },
+    team2: {
+      user: {
+        id: "4",
+        name: "Baby Back Gibbs",
+        avatar: "15d7cf259bc30eab8f6120f45f652fb6",
+        avatarImg: "../avatars/avatar4.svg",
+        transactions: 31,
+      },
+      players: ["Tyjae Spears"],
+      draftPicks: [],
+      waiverBudget: [],
+      value: [34],
+    },
+  },
+  {
+    team1: {
+      user: {
+        id: "4",
+        name: "Baby Back Gibbs",
+        avatar: "15d7cf259bc30eab8f6120f45f652fb6",
+        avatarImg: "../avatars/avatar4.svg",
+        transactions: 31,
+      },
+      players: ["Tank Bigsby"],
+      draftPicks: [],
+      waiverBudget: [],
+      value: [40],
+    },
+    team2: {
+      user: {
+        id: "5",
+        name: "Pollard Greens",
+        avatar: "15d7cf259bc30eab8f6120f45f652fb6",
+        avatarImg: "../avatars/avatar5.svg",
+        transactions: 38,
+      },
+      players: ["Jordan Love"],
+      draftPicks: [],
+      waiverBudget: [],
+      value: [17],
+    },
+  },
+  {
+    team1: {
+      user: {
+        id: "6",
+        name: "Finding Deebo",
+        avatar: "d6ad9a18c52dcdb704399beed5d5b21f",
+        avatarImg: "../avatars/avatar6.svg",
+        transactions: 29,
+      },
+      players: ["Justice Hill", "Quentin Johnston", "Jayden Daniels"],
+      draftPicks: [],
+      waiverBudget: [],
+      value: [38.8, 44.4, 11.5],
+    },
+    team2: {
+      user: {
+        id: "7",
+        name: "Loud and Stroud",
+        avatar: "3d8ea1e7289177ddf22dd57e107ee334",
+        avatarImg: "../avatars/avatar7.svg",
+        transactions: 19,
+      },
+      players: ["Jalen Hurts", "Tank Dell", "Tyjae Spears"],
+      draftPicks: [],
+      waiverBudget: [],
+      value: [9.7, 37, 34],
+    },
+  },
+  {
+    team1: {
+      user: {
+        id: "8",
+        name: "Ja’Marr the Merrier",
+        avatar: "4f4090e5e9c3941414db40a871e3e909",
+        avatarImg: "../avatars/avatar8.svg",
+        transactions: 40,
+      },
+      players: ["Aaron Jones", "Cam Akers", "Najee Harris", "Cedric Tillman"],
+      draftPicks: [],
+      waiverBudget: [],
+      value: [17.3, 44.5, 25.7, 49.6],
+    },
+    team2: {
+      user: {
+        id: "9",
+        name: "Dak to the Future",
+        avatar: "b3338675f635c2c1f42b469621d38ec6",
+        avatarImg: "../avatars/avatar9.svg",
+        transactions: 33,
+      },
+      players: ["Alvin Kamara", "Bo Nix"],
+      draftPicks: [],
+      waiverBudget: [],
+      value: [16.3, 15],
+    },
+  },
+  {
+    team1: {
+      user: {
+        id: "9",
+        name: "Dak to the Future",
+        avatar: "b3338675f635c2c1f42b469621d38ec6",
+        avatarImg: "../avatars/avatar9.svg",
+        transactions: 33,
+      },
+      players: ["Nick Chubb", "Courtland Sutton", "James Cook", "Bucky Irving"],
+      draftPicks: [],
+      waiverBudget: [],
+      value: [30.5, 27.4, 13.4, 15.2],
+    },
+    team2: {
+      user: {
+        id: "10",
+        name: "LaPorta Potty",
+        avatar: "81d984f3556782876d25195356b0ab58",
+        avatarImg: "../avatars/avatar10.svg",
+        transactions: 42,
+      },
+      players: [
+        "Javonte Williams",
+        "Tyler Allgeier",
+        "Bijan Robinson",
+        "Quentin Johnston",
+      ],
+      draftPicks: [],
+      waiverBudget: [],
+      value: [48.6, 46.2, 7.2, 53],
+    },
+  },
+];
 
 export const fakeUsers = [
   {

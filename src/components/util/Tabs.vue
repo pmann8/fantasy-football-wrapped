@@ -33,7 +33,8 @@ const changeTab = (tab: string) => {
             store.currentTab === 'powerRankings',
         }"
       >
-        Power Rankings
+        <span class="block sm:hidden">Rankings</span>
+        <span class="hidden sm:block">Power Rankings</span>
       </button>
     </li>
     <li class="cursor-pointer me-2">
@@ -45,7 +46,8 @@ const changeTab = (tab: string) => {
             store.currentTab === 'expectedWins',
         }"
       >
-        Expected Wins
+        <span class="block sm:hidden">Exp. Wins</span>
+        <span class="hidden sm:block">Expected Wins</span>
       </button>
     </li>
     <li class="cursor-pointer me-2">
@@ -82,7 +84,19 @@ const changeTab = (tab: string) => {
             store.currentTab === 'weeklyReport',
         }"
       >
-        <span class="hidden sm:inline">Weekly</span> Report
+        Weekly Report
+      </button>
+    </li>
+    <li class="cursor-pointer me-2">
+      <button
+        @click="changeTab('draft')"
+        class="inline-block p-2 rounded-t-lg sm:p-4"
+        :class="{
+          'text-blue-600 bg-white dark:bg-gray-800 dark:text-blue-500 shadow border-x border-t dark:border-gray-700':
+            store.currentTab === 'draft',
+        }"
+      >
+        Draft
       </button>
     </li>
     <li class="cursor-pointer me-2">
@@ -94,7 +108,7 @@ const changeTab = (tab: string) => {
             store.currentTab === 'leagueHistory',
         }"
       >
-        League History
+        <span class="hidden sm:inline">League</span> History
       </button>
     </li>
   </ul>
