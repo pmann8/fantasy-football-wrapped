@@ -81,43 +81,56 @@ const sortedPropsTableData = computed(() => {
   });
 });
 
-// sorted version of originalData
+const sortDirection = ref("asc");
+
 const tableData: any = computed(() => {
-  if (tableOrder.value === "wins") {
-    return originalData.value.sort((a: any, b: any) => {
-      if (a.wins !== b.wins) {
-        return b.wins - a.wins;
-      }
-      return b.pointsFor - a.pointsFor;
-    });
-  } else if (tableOrder.value === "points") {
-    return originalData.value.sort((a: any, b: any) => {
-      return b.pointsFor - a.pointsFor;
-    });
-  } else if (tableOrder.value === "pointsAgainst") {
-    return originalData.value.sort((a: any, b: any) => {
-      return b.pointsAgainst - a.pointsAgainst;
-    });
-  } else if (tableOrder.value === "rating") {
-    return originalData.value.sort((a: any, b: any) => {
-      return b.rating - a.rating;
-    });
-  } else if (tableOrder.value === "recordAgainstAll") {
-    return originalData.value.sort((a: any, b: any) => {
-      if (a.winsAgainstAll !== b.winsAgainstAll) {
-        return b.winsAgainstAll - a.winsAgainstAll;
-      }
-      return b.pointsFor - a.pointsFor;
-    });
-  } else if (tableOrder.value === "medianRecord") {
-    return originalData.value.sort((a: any, b: any) => {
-      if (a.winsWithMedian !== b.winsWithMedian) {
-        return b.winsWithMedian - a.winsWithMedian;
-      }
-      return b.pointsFor - a.pointsFor;
-    });
-  }
+    const data = [...originalData.value];
+    const direction = sortDirection.value === "asc" ? 1 : -1;
+
+    if (tableOrder.value === "wins") {
+        return data.sort((a: any, b: any) => {
+            if (a.wins !== b.wins) {
+                return (b.wins - a.wins) * direction;
+            }
+            return (b.pointsFor - a.pointsFor) * direction;
+        });
+    } else if (tableOrder.value === "points") {
+        return data.sort((a: any, b: any) => {
+            return (b.pointsFor - a.pointsFor) * direction;
+        });
+    } else if (tableOrder.value === "pointsAgainst") {
+        return data.sort((a: any, b: any) => {
+            return (b.pointsAgainst - a.pointsAgainst) * direction;
+        });
+    } else if (tableOrder.value === "rating") {
+        return data.sort((a: any, b: any) => {
+            return (b.rating - a.rating) * direction;
+        });
+    } else if (tableOrder.value === "recordAgainstAll") {
+        return data.sort((a: any, b: any) => {
+            if (a.winsAgainstAll !== b.winsAgainstAll) {
+                return (b.winsAgainstAll - a.winsAgainstAll) * direction;
+            }
+            return (b.pointsFor - a.pointsFor) * direction;
+        });
+    } else if (tableOrder.value === "medianRecord") {
+        return data.sort((a: any, b: any) => {
+            if (a.winsWithMedian !== b.winsWithMedian) {
+                return (b.winsWithMedian - a.winsWithMedian) * direction;
+            }
+            return (b.pointsFor - a.pointsFor) * direction;
+        });
+    }
 });
+
+const toggleSort = (column: string) => {
+    if (tableOrder.value === column) {
+        sortDirection.value = sortDirection.value === "asc" ? "desc" : "asc";
+    } else {
+        tableOrder.value = column;
+        sortDirection.value = "desc";
+    }
+};
 
 const mostWins = computed(() => {
   return maxBy(originalData.value, "wins")?.wins;
@@ -222,41 +235,32 @@ const cardHeight = computed(() => {
                 Team name
               </th>
               <th scope="col" class="px-2 py-3 sm:px-6">
-                <div
-                  @click="tableOrder = 'wins'"
-                  @mouseover="hover = 'wins'"
-                  @mouseleave="hover = ''"
-                  class="flex items-center cursor-pointer dark:text-gray-200"
-                >
-                  Record
-                  <div>
-                    <svg
-                      class="w-3 h-3 ms-1.5 fill-slate-400"
-                      :class="{
-                        'fill-slate-600 dark:fill-slate-50':
-                          tableOrder == 'wins',
-                      }"
-                      aria-hidden="true"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        d="M8.574 11.024h6.852a2.075 2.075 0 0 0 1.847-1.086 1.9 1.9 0 0 0-.11-1.986L13.736 2.9a2.122 2.122 0 0 0-3.472 0L6.837 7.952a1.9 1.9 0 0 0-.11 1.986 2.074 2.074 0 0 0 1.847 1.086Zm6.852 1.952H8.574a2.072 2.072 0 0 0-1.847 1.087 1.9 1.9 0 0 0 .11 1.985l3.426 5.05a2.123 2.123 0 0 0 3.472 0l3.427-5.05a1.9 1.9 0 0 0 .11-1.985 2.074 2.074 0 0 0-1.846-1.087Z"
-                      />
-                    </svg>
+                  <div @click="toggleSort('wins')"
+                       @mouseover="hover = 'wins'"
+                       @mouseleave="hover = ''"
+                       class="flex items-center cursor-pointer dark:text-gray-200">
+                      Record
+                      <div>
+                          <svg class="w-3 h-3 ms-1.5 fill-slate-400"
+                               :class="{
+          'fill-slate-600 dark:fill-slate-50': tableOrder == 'wins',
+        }"
+                               aria-hidden="true"
+                               xmlns="http://www.w3.org/2000/svg"
+                               fill="currentColor"
+                               viewBox="0 0 24 24">
+                              <path d="M8.574 11.024h6.852a2.075 2.075 0 0 0 1.847-1.086 1.9 1.9 0 0 0-.11-1.986L13.736 2.9a2.122 2.122 0 0 0-3.472 0L6.837 7.952a1.9 1.9 0 0 0-.11 1.986 2.074 2.074 0 0 0 1.847 1.086Zm6.852 1.952H8.574a2.072 2.072 0 0 0-1.847 1.087 1.9 1.9 0 0 0 .11 1.985l3.426 5.05a2.123 2.123 0 0 0 3.472 0l3.427-5.05a1.9 1.9 0 0 0 .11-1.985 2.074 2.074 0 0 0-1.846-1.087Z" />
+                          </svg>
+                      </div>
                   </div>
-                </div>
-                <div
-                  :class="hover === 'wins' ? 'visible' : 'invisible'"
-                  class="absolute z-10 inline-block px-3 py-2 mt-2 -ml-20 text-sm font-medium text-white normal-case bg-gray-900 rounded-lg shadow-sm tooltip dark:bg-gray-600"
-                >
-                  Regular season wins and losses
-                </div>
+                  <div :class="hover === 'wins' ? 'visible' : 'invisible'"
+                       class="absolute z-10 inline-block px-3 py-2 mt-2 -ml-20 text-sm font-medium text-white normal-case bg-gray-900 rounded-lg shadow-sm tooltip dark:bg-gray-600">
+                      Regular season wins and losses
+                  </div>
               </th>
               <th scope="col" class="px-2 py-3 sm:px-6">
                 <div
-                  @click="tableOrder = 'points'"
+                  @click="toggleSort('points')"
                   @mouseover="hover = 'points'"
                   @mouseleave="hover = ''"
                   class="flex items-center cursor-pointer dark:text-gray-200"
@@ -289,7 +293,7 @@ const cardHeight = computed(() => {
               </th>
               <th scope="col" class="px-2 py-3 sm:px-6">
                 <div
-                  @click="tableOrder = 'pointsAgainst'"
+                  @click="toggleSort('pointsAgainst')"
                   @mouseover="hover = 'pointsAgainst'"
                   @mouseleave="hover = ''"
                   class="flex items-center w-20 cursor-pointer dark:text-gray-200"
@@ -322,7 +326,7 @@ const cardHeight = computed(() => {
               </th>
               <th scope="col" class="px-2 py-3 sm:px-6">
                 <div
-                  @click="tableOrder = 'recordAgainstAll'"
+                  @click="toggleSort('recordAgainstAll')"
                   @mouseover="hover = 'recordAgainstAll'"
                   @mouseleave="hover = ''"
                   class="flex items-center w-20 cursor-pointer dark:text-gray-200"
@@ -357,7 +361,7 @@ const cardHeight = computed(() => {
               </th>
               <th scope="col" class="px-2 py-3 sm:px-6">
                 <div
-                  @click="tableOrder = 'medianRecord'"
+                  @click="toggleSort('medianRecord')"
                   @mouseover="hover = 'medianRecord'"
                   @mouseleave="hover = ''"
                   class="flex items-center w-20 cursor-pointer dark:text-gray-200"

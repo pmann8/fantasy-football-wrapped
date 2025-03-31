@@ -106,7 +106,7 @@ onMounted(async () => {
           !store.loadingUserLeagues
         "
       >
-        <CardContainer />
+        <!--<CardContainer />-->
         <Table
           class="mt-4"
           :users="store.leagueUsers[store.currentLeagueIndex]"
